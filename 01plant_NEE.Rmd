@@ -1,0 +1,580 @@
+---
+title: "Invasional meltdown: plant"
+author: "Zhijie_Zhang"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: no
+---
+
+
+<style type="text/css">
+
+body{ /* Normal  */
+      font-size: 16px;
+      font-family: "Times New Roman"
+  }
+td {  /* Table  */
+  font-size: 14px;
+}
+h1.title {
+  font-size: 34px;
+  color: Black;
+  font-family: "Arial";
+}
+h1 { /* Header 1 */
+  font-size: 26px;
+  color: DarkBlue;
+  font-family: "Arial";
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+    font-family: "Arial";
+    color: DarkBlue;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+  font-family: "Arial";
+  color: DarkBlue;
+}
+
+h4 { /* Header 4 */
+  font-size: 16px;
+  font-family: "Arial";
+  color: DarkBlue;
+}
+code.r{ /* Code block */
+    font-size: 12px;
+}
+pre { /* Code block - determines code spacing between lines */
+    font-size: 12px;
+}
+</style>
+
+The codes for the paper **Soil-microbes-mediated invasional meltdown in plants**. This is the analyses for plant data.\
+
+
+I conditioned soil with alien/alien/no plants (soil-conditioning phase), and then tested whether these soils affected later alien and native plants when they are grown alone or in intra- or interspecific competition (test phase).\
+There are ten species in the soil-conditioning phase, four aliens and six natives; ten species in the test phase, five aliens and five natives.
+
+
+**Tested questions:**
+
+1. how soil species modifies competitive outcomes (i.e. biomass across alone, monoculture and bi-culture; section 2; Fig. 3a)
+    + whether presence of soil species matters
+    + whether home vs away matters (i.e. soil and test species are the same species)
+    + whether origin of soil species matters (native vs alien)
+    + whether origin of test species matters
+2. how soil species modifies growth rate of test species (test plants that were grown alone; section 1; Fig. 3b; beta_alone)
+3. how soil species modifies response to intra- or interspecific competition (section 2; Fig.3c; beta_inter and beta_intra)
+
+
+
+```{r}
+knitr::opts_chunk$set(warning=F,message = F)
+```
+
+```{r}
+library(tidyverse)
+library(nlme)
+library(knitr)
+library(RColorBrewer)
+library(gridExtra)
+dir.create("fig",   showWarnings = FALSE) # create folder for figures
+dir.create('table', showWarnings = F)     # create folder for tables
+```
+
+
+read data
+```{r}
+# load('plant.RData') # I saved all results, so I do not have to re-run the model.
+source('01functions.R')
+dat <- read.csv('03plant_dat.csv', stringsAsFactors = FALSE)
+```
+
+
+
+# How soil species modifies growth rate of test species
+(test plants that were grown alone)
+
+**Four scenarios in soil phase:**\
+
+1. no soil species (empty pots in soil phase
+\  \  2.1 soil and test species are the same species\
+\  \  2.2 they are different species\
+\  \   \   2.2.1 soil species is native\
+\  \   \   2.2.2 soil species is alien\
+
+
+data prep
+```{r lambda_data_prep}
+dat_lambda <- dat %>%
+  filter(competition == "alone") %>% 
+  mutate(treat = ifelse(sp_p1 == "empty", "empty",
+                        ifelse(sp_p1 == target, "own", origin_p1)))
+
+```
+
+
+## Tables
+### aboveground 
+
+Here, I generate 3 contrasts:
+
+* T1, 1 vs 2: whether presence of soil species matters
+* T2, 2.1 vs 2.2: whether home vs away matters
+* T3, 2.2.1 vs 2.2.2 when in away soil, whether origin matters (soil conditioned by natives vs soil conditioned by aliens)
+
+see [https://stats.idre.ucla.edu/r/library/r-library-contrast-coding-systems-for-categorical-variables/] for details of how to generate contrasts in R.
+```{r lambda_contrast_matrix2}
+mat_lambda <- matrix(c(1/4, 1/4, 1/4,  1/4,
+                      -1,   1/3, 1/3,  1/3, # T1
+                       0,   1,  -1/2, -1/2, # T2
+                       0,   0,   1,   -1  ),# T3
+                      ncol=4)
+
+mymat_lambda = solve(t(mat_lambda))
+
+fun_round <- function(x) {
+  ifelse (abs(x) < 0.00001, 0 , x) 
+} # the solve function will have round problem. Although this is not going to affect the results, I force small values to be 0.
+contrast_lambda <- mymat_lambda[,2:4] %>% 
+  as.data.frame() %>% 
+  mutate_if(is.numeric, fun_round) %>% 
+  mutate(treat = c('empty', 'own', 'alien', 'native'))
+
+names(contrast_lambda)[1:3] <- c('T1_empty', 'T2_home_away', 'T3_origin')
+
+dat_lambda <- dat_lambda %>%
+  left_join(contrast_lambda)
+rm(mat_lambda, mymat_lambda, fun_round)
+```
+
+```{r}
+u<-gl(1,1,length(dat_lambda$biomass))
+```
+
+
+```{r lambda, eval = T}
+m_lambda <- lme(sqrt(biomass) ~ trans_date_c +
+                  (T1_empty + T2_home_away + T3_origin) * origin_p2,
+                random=list(u = pdBlocked(list(
+                  pdIdent(form = ~ family-1),
+                  pdIdent(form = ~ target-1),
+                  pdIdent(form = ~ sp_p1-1),
+                  pdIdent(form = ~ family_p1-1)
+                  ))),
+                weights=varComb(varIdent(form= ~1|target),
+                                varIdent(form= ~1|sp_p1),
+                                varIdent(form= ~1|treat)),
+                control = lmeControl(msMaxIter = 1000),
+                data=dat_lambda, method = "ML")
+```
+
+
+
+```{r, eval = T}
+table_ab <- drop1_single(m_lambda)
+```
+
+
+```{r}
+table_ab %>% kable()
+```
+
+
+### total biomass
+```{r}
+dat_lambda_total <- dat_lambda %>%
+  mutate(total = biomass + root) %>%
+  filter(!is.na(total))
+
+u <- gl(1, 1, length(dat_lambda_total$biomass))
+```
+
+
+```{r, eval = T}
+m_lambda    <-  update(m_lambda,sqrt(total) ~., data=dat_lambda_total)
+table_total <- drop1_single(m_lambda)
+```
+
+
+```{r}
+table_total %>% kable()
+```
+
+### belowground
+```{r}
+dat_lambda_root <- dat_lambda %>%
+  filter(!is.na(root))
+u<-gl(1,1,length(dat_lambda_root$root))
+```
+
+```{r, eval = T}
+m_lambda    <- update(m_lambda, sqrt(root)~., data=dat_lambda_root)
+table_below <- drop1_single(m_lambda)
+```
+
+
+```{r}
+table_below %>% kable()
+```
+
+export tables
+```{r}
+# write.csv(cbind(table_ab, table_below, table_total), './table/alone.csv')
+```
+
+
+
+## Figures
+
+**Major findings**:
+
+1. test species decreased their biomass in presence of soil species.
+2. test species increased their biomass in soil conditioned by aliens, in contrast to soil conditioned by natives (disappeared after adding phase-1 biomass).
+3. Compared with native test species, alien test species increased their biomass in soil conditioned by aliens. But in soil conditioned by natives, this pattern was not apparent.
+
+plot function
+
+```{r}
+theme <-theme(panel.background = element_blank(),
+              panel.border     = element_rect(fill = NA), 
+              strip.background = element_blank(),
+              axis.text.x = element_text(size = 5.5, angle = 0, hjust = 0.5, colour = 'black'),
+              axis.text.y  = element_text(size = 6, colour = 'black'),
+              axis.title = element_text(size = 6),# size of y lab
+              legend.position   = c(0.9, 0.85),
+              legend.title      = element_text(size = 6),
+              legend.text       = element_text(size = 6),
+              legend.key.height = unit(0.7,'line'),
+              legend.background = element_blank(),
+              legend.key        = element_rect(colour = NA, fill = NA),
+              plot.tag    = element_text(size = 7, face  = 'bold'),
+              plot.title  = element_text(hjust = 0.5, size = 7),
+              plot.margin = margin(t = 0.5, r = 0.1, b = 0, l = 0.1, unit = "cm"))
+```
+
+```{r lambda_fig}
+col_fig <- brewer.pal(3, 'Dark2')[2:1]
+```
+
+### aboveground biomass (Fig. 3b)
+```{r lambda_fig_above, fig.height=3, fig.width= 3.5}
+p_alone <- plot_alone(legend = F, tag = 'b', xlab = '\nSoil treatment') + theme(legend.position = c(0.16,0.15)) +
+  annotate("text", x = 4.8, y = 2.9, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2) +
+  annotate("text", x = 4.8, y = 2.6, label = expression(Origin : Soil[Alien/Native] ~ '\u2020'),  hjust = 0, size = 2) +
+  labs(x = '\nSoil treatment', y = ' \n', title = 'Biomass when grown alone')
+p_alone
+```
+
+
+
+
+### belowground and total biomass (Extended Fig.1)
+```{r, fig.width=7, fig.height=3.5}
+#below
+p1 <- plot_alone(dat_lambda_root, variable = 'root', 
+                 ylab = 'Belowground biomass [g]\n', ylim = c(0,2),
+                 tag = 'a') + 
+  theme(legend.position = c(0.15,0.15)) + 
+  annotate("text", x = 5, y = 2, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2.5) +
+  annotate("text", x = 5, y = 1.8, label = expression(Soil[Home/Away] ~ '\u2020'), hjust = 0, size = 2.5) +
+  annotate("text", x = 5, y = 1.6, label = expression(Origin : Soil[Home/Away] ~ '*'), hjust = 0, size = 2.5) +
+  annotate("text", x = 5, y = 1.4, label = expression(Origin : Soil[Alien/Native] ~ '\u2020'), hjust = 0, size = 2.5) 
+
+# total
+p2 <- plot_alone(dat_lambda_total, variable = 'total', 
+                 ylab = 'Total biomass [g]\n', ylim = c(0,5),
+                 tag = 'b', legend = F) +   
+  annotate("text", x = 5, y = 5, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2.5) +
+  annotate("text", x = 5, y = 4.5, label = expression(Origin : Soil[Alien/Native] ~ '*'), hjust = 0, size = 2.5) 
+
+
+grid.arrange(p1,p2, ncol =2, nrow = 1)
+```
+
+
+```{r}
+# ggsave('./fig/sup_alone.pdf', grid.arrange(p1, p2, ncol =2, nrow = 1), height = 2.7, width = 14/2.54, useDingbats=FALSE)
+```
+
+
+
+# How soil species modify plants, all data together
+(Aboveground biomass was used, as it is almost impossible to seperate roots of plants that were grown together)
+
+
+```{r prep_all,}
+dat_all <- dat %>%
+  mutate(treat = ifelse(sp_p1 == "empty", "empty", # 1 or 2
+                        ifelse(sp_p1 == target, "own", origin_p1))) %>%
+  #---------------- contrasts for soil treatments ---------------------#
+  left_join(contrast_lambda) %>% 
+  #------------- contrasts for competition treatments -----------------#
+  mutate(t1_alone_comp  =  ifelse(competition=="alone", -2/3, 1/3)) %>% # contrast for alone vs competition
+  mutate(t2_intra_inter =  ifelse(competition=="alone",  0, 
+                                  ifelse(competition=="intra", 0.5, -0.5)))
+```
+
+## Tables
+### main analyses (Table 1)
+```{r}
+u <- gl(1,1,length(dat_all$biomass))
+```
+
+```{r all, eval = T}
+m_all <- lme(sqrt(biomass) ~ trans_date_c + 
+               (T1_empty + T2_home_away + T3_origin) * origin_p2 * (t1_alone_comp + t2_intra_inter),
+             random = list(u = pdBlocked(list(
+               pdIdent(form = ~ family-1),
+               pdIdent(form = ~ target-1), # focal test species
+               pdIdent(form = ~ family_comp-1),
+               pdIdent(form = ~ comp-1),  # competitor
+               pdIdent(form = ~ sp_p1-1), # soil species
+               pdIdent(form = ~ family_p1-1) 
+               ))),
+             weights = varComb(varIdent(form=~1|target),
+                               varIdent(form=~1|sp_p1),
+                               varIdent(form=~1|treat)
+                               ),
+             control = lmeControl(maxIter = 50000, msMaxIter = 50000, msMaxEval = 50000),
+             data = dat_all, method="ML")
+```
+
+```{r main_table, eval = T}
+m_all_r2  <- update(m_all,    .~.-(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))
+m_all_r3  <- update(m_all_r2, .~ trans_date_c+(T1_empty+T2_home_away+T3_origin)+origin_p2+(t1_alone_comp+t2_intra_inter))
+
+all_r1 <- drop1(m_all,    test="Chisq")[-c(1,2),]
+all_r2 <- drop1(m_all_r2, test="Chisq")[-c(1,2),]
+all_r3 <- drop1(m_all_r3, test="Chisq")[-c(1,2),]
+all_r4 <- drop1(update(m_all_r3, .~trans_date_c),test="Chisq")[-1,]
+```
+
+```{r }
+lrt.table(rbind(all_r4,all_r3,all_r2,all_r1))
+# write.csv(merge_fix_rand(rbind(all_r4,all_r3,all_r2,all_r1), m_all), './table/t_all.csv')
+```
+
+### without soil spp = test comp species
+Supplementary Table 2 
+```{r}
+dat_all2 <- dat_all %>% 
+  filter(!(competition == 'inter' & sp_p1 == comp))
+u <- gl(1,1,length(dat_all2$biomass))
+```
+
+```{r, eval = T}
+m_all2 <- update(m_all, data = dat_all2)
+m_all2_r2 <- update(m_all2,    .~. -(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))
+m_all2_r3 <- update(m_all2_r2, .~ trans_date_c+(T1_empty+T2_home_away+T3_origin)+origin_p2+(t1_alone_comp+t2_intra_inter))
+
+all2_r1 <- drop1(m_all2,    test="Chisq")[-c(1,2),]
+all2_r2 <- drop1(m_all2_r2, test="Chisq")[-c(1,2),]
+all2_r3 <- drop1(m_all2_r3, test="Chisq")[-c(1,2),]
+all2_r4 <- drop1(update(m_all2_r3,. ~ trans_date_c), test="Chisq")[-1,]
+```
+
+```{r}
+lrt.table(rbind(all2_r4,all2_r3,all2_r2,all2_r1))
+# write.csv(merge_fix_rand(rbind(all2_r4,all2_r3,all2_r2,all2_r1), m_all2), './table/t_all_no_pair.csv')
+```
+
+### with biomass of soil plants as covariate
+Supplementary Table 3 
+```{r}
+u <- gl(1,1,length(dat_all$biomass))
+```
+
+```{r all_with_p1, eval = T}
+m_all_co    <-  update(m_all,      .~. + scale(sqrt(bio_p1_0)))
+m_all_co_r2 <-  update(m_all_co,   .~.-(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))#2 way
+m_all_co_r3 <-  update(m_all_co_r2,.~ scale(sqrt(bio_p1_0)) + trans_date_c + 
+                         (T1_empty + T2_home_away + T3_origin) + origin_p2 + (t1_alone_comp + t2_intra_inter))#main
+m_all_co_r4 <-  update(m_all_co_r2,.~ scale(sqrt(bio_p1_0))+trans_date_c)
+
+
+all_co_r1   <-  drop1(m_all_co,    test="Chisq")[-c(1,2,3),]
+all_co_r2   <-  drop1(m_all_co_r2, test="Chisq")[-c(1,2,3),]
+all_co_r3   <-  drop1(m_all_co_r3, test="Chisq")[-c(1,2,3),]
+all_co_r4   <-  drop1(m_all_co_r4,test="Chisq")[-1,]
+```
+
+```{r p1_table}
+lrt.table(rbind(all_co_r4,all_co_r3,all_co_r2,all_co_r1))
+# write.csv(merge_fix_rand(rbind(all_co_r4,all_co_r3,all_co_r2,all_co_r1), m_all_co), './table/t_all_co.csv')
+```
+
+## Figures
+### across competition (competitive outcomes; Fig. 3a)
+```{r,fig.height= 3.5, fig.width = 4}
+p1 <- plot_alone(data = dat_all, title = 'Biomass across competition treatments', xlab = '\nSoil treatment') + 
+  theme(legend.position = c(0.15,0.15)) + 
+  annotate("text", x = 4.8, y = 2.9, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2) +
+  annotate("text", x = 4.8, y = 2.6, label = expression(Soil[Home/Away] ~ '*'),  hjust = 0, size = 2) +
+  annotate("text", x = 4.8, y = 2.3, label = expression(Origin : Soil[Alien/Native] ~ '*'), hjust = 0, size = 2) 
+p1
+```
+
+
+### responses to competition (Fig. 3c)
+```{r}
+at=c(1,2,     # empty
+     3.5, 4.5,# own,i.e. same species
+     6,   7,  # alien soil species
+     8.5, 9.5 # native soil species
+     )
+t_lambda <- dat_lambda %>%
+  group_by(target, sp_p1, treat, origin_p2) %>%
+  summarise(mean_bio = mean(biomass)) %>%
+  group_by(treat, origin_p2) %>%
+  summarise(mean = mean(mean_bio),se = sd(mean_bio)/sqrt(n())) %>%
+  arrange(match(treat, c("empty","own","alien","native"))) %>% 
+  mutate(comp = 'alone')
+t_comp <- dat_all%>%
+  filter(competition != "alone") %>%
+  group_by(fix, target, sp_p1, treat, origin_p2, comb) %>%
+  summarise(mean_bio = mean(biomass))%>%
+  group_by(target, sp_p1, treat, origin_p2)%>%
+  summarise(mean_bio = mean(mean_bio))%>%
+  group_by(treat, origin_p2)%>%
+  summarise(mean = mean(mean_bio),se = sd(mean_bio)/sqrt(n()))%>%
+  arrange(match(treat, c("empty","own","alien","native"))) %>% 
+  mutate(comp = 'comp')
+
+t_lambda_comp <- rbind(t_lambda,t_comp)
+```
+
+```{r}
+at=c(1,1.2,  # empty
+     3.5,3.7,# own,i.e. same species
+     6,6.2,  # alien soil species
+     8.5,8.7
+     )
+t_slope <- cbind(t_lambda[,-5], t_comp[,-5])
+
+
+p3 <- t_lambda_comp %>% 
+  mutate(comp = ifelse(comp == 'alone', 'No', 'Yes')) %>% 
+  ggplot() +
+  aes(x = c(at, at + 1), y = mean, col = origin_p2) + 
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0, col = rep(col_fig, 8)) +
+  scale_x_continuous(limits = c(0.5, 10), breaks = c(1.5,4,6.5,9), labels = c("non-conditioned","home","alien","native")) + 
+  scale_y_continuous(limits = c(0,3)) + 
+  scale_color_manual(values = col_fig) +
+  scale_shape_manual(values = c(19, 21)) + 
+  labs(x = '\nSoil treatment', y = ' \n', title = 'Changes in biomass to competition', shape = 'Competition:', tag = 'c') +
+  guides(col = F) +
+  theme +
+  geom_segment(aes(x = at, xend = at + 1, y = mean, yend = mean1), data = t_slope) +
+  geom_point(aes(shape = comp), fill = 'white') + 
+  theme(legend.position = c(0.16,0.15)) +
+  annotate("text", x = 4.4, y = 2.9, label = expression(Comp[Yes/No] ~ '\u2020'), hjust = 0, size = 2) +
+  annotate("text", x = 4.4, y = 2.6, label = expression(Soil[Alien/Native] : Comp[Yes/No] ~ '*'), hjust = 0, size = 2)
+```
+
+
+```{r,fig.height= 3.5, fig.width = 4}
+p3
+```
+
+
+```{r}
+# ggsave('./fig/plant_main.pdf', grid.arrange(p1, p_alone, p3, nrow = 1),
+#        width = 18.8/2.54, height = 2.5, useDingbats=FALSE)
+```
+
+
+### test-plant biomass ~ soil-plant biomass
+Supplementary Fig. 2
+```{r test~soil, eval = T}
+m_bio <- update(m_all_co_r4, .~ sqrt(bio_p1_0), method = 'REML')
+```
+
+
+```{r, fig.width= 4, fig.height= 4}
+# pdf('./fig/test_soil_biomass.pdf', width = 8/2.54, height = 8/2.54)
+plot(sqrt(dat_all$bio_p1_0), sqrt(dat_all$biomass),ylab="Biomass of test plant",
+     xlab = "Biomass of soil-conditioning plant",
+     cex = 0.6, cex.axis = 0.6, cex.lab= 0.6, tck=-0.03,
+     yaxt="n",col = rgb(red = .2, green = .2, blue = .2, alpha = 0.2),
+     pch = 16)
+axis(2,at=seq(0,2.5,0.5), labels=seq(0,2.5,0.5) %>% sprintf(fmt = '%#.1f'),las=1, cex.axis = 0.6, tck=-0.03)
+abline(m_bio$coefficients$fixed[1],m_bio$coefficients$fixed[2])
+# dev.off()
+```
+
+
+
+
+# export soil-legacy effects 
+These data is used to test relationship between soil-legacy effects and soil community similarity or diversity(or abundance) of soil pathogens.
+
+## beta_alone
+Here, soil-legacy effects were based on test plants that were grown alone.
+```{r}
+dat_lambda_mean <- dat_lambda %>%
+  group_by(sp_p1, family_p1, origin_p1, target, family, origin_p2) %>%
+  dplyr::summarise(biomass = mean((biomass), na.rm = T))
+dat_legacy_alone <- dat_lambda_mean%>%
+  filter(sp_p1 != 'empty') %>%
+  # get the ck: growth on no plant soil; and left join
+  left_join(dat_lambda_mean %>%
+              filter(sp_p1 == 'empty') %>% # use empty as control
+              ungroup() %>%
+              dplyr::select(target, biomass)%>%
+              distinct() %>%
+              dplyr::rename(biomass_ck = biomass), by = 'target')%>%
+  mutate(legacy_alone = log(biomass/biomass_ck)) %>%  # log scale
+  ungroup() %>%
+  mutate(sp_p1 = sub(' ', '_', sp_p1),
+         target = sub(' ','_', target)) %>%
+  rename(sp_p2 = target)
+```
+
+## beta_inter and beta_intra
+Here, soil-legacy effects were the effect of soil species on strength of competition
+```{r}
+dat_mean <- dat_all %>% 
+  group_by(sp_p1, target, comp, family_p1, family, family_comp, origin_p2) %>% 
+  dplyr::summarise(biomass = mean(biomass))
+
+# calculate strength of competition for each target x comp x soil combi
+dat_mean <- dat_mean %>% 
+  filter(comp != 'alone') %>% 
+  left_join(dat_mean %>% filter(comp == 'alone') %>% ungroup %>% 
+              select(sp_p1, target, biomass) %>% rename(bio_alone = biomass)
+              ) %>% 
+  mutate(stren_comp = log(biomass/bio_alone))
+
+# calculate the changes in strength of competition by soil
+dat_legacy_stren <- dat_mean %>% 
+  filter(sp_p1 != 'empty') %>% 
+  left_join(dat_mean %>% filter(sp_p1 == 'empty') %>% ungroup %>% 
+              select(target, comp, stren_comp) %>% rename(stren_comp_ck = stren_comp)) %>% 
+  mutate(legacy_stren = stren_comp - stren_comp_ck) %>% 
+  ungroup() %>% 
+  mutate(sp_p1  = sub(' ', '_', sp_p1),
+         target = sub(' ', '_', target),
+         comp   = sub(' ', '_', comp)) %>% 
+  rename(sp_p2      = target,
+         sp_p2_comp = comp)
+```
+
+export the soil-legacy effect for soil analyses
+```{r}
+save(dat_legacy_alone, dat_legacy_stren, file = 'legacy_beta.RData')
+```
+
+
+# sessionInfo
+```{r}
+sessionInfo()
+```
