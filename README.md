@@ -21,7 +21,7 @@ We experimentally tested whether and how a third plant species affected the comp
     - ‘01functions.R’ is the functions that are used in ‘01plant_NEE.Rmd’ and ‘01soil_NEE.Rmd’. 
        - ‘01plant_NEE.Rmd’ is the code for plant data, and it calls ‘03plant_dat.csv’ (see below for details of ‘03plant_dat.csv’). If you want to re-run the analyses, please run ‘01plant_NEE.Rmd’ before ‘01soil_NEE.Rmd’, as it will export data that will be used in ‘01soil_NEE.Rmd’
        - ‘01soil_NEE.Rmd’ is the code for the soil-microbe data, and it calls ‘04phyloseq_16s_its.RData’ and ‘05dfr_funguild_guilds.csv’ (see below for details).
-2. The files started with ‘02’ are the reports of ‘01xxx.Rmd’ (I think, **in most cases, reading these two reports will solve your questions**.).
+2. The files started with ‘02’ are the reports of ‘01xxx.Rmd’ (I think, **in most cases, reading these two reports will solve your questions**. You can simply visit https://ecozhang.github.io/Invasional-meltdown/02plant_NEE for plant results and https://ecozhang.github.io/Invasional-meltdown/02soil_NEE for soil-microbe results).
 3. The file ‘03plant_dat.csv’ is the **biomass data of test plants**.
    - The variable ‘fix’ is identity of unit (pot), i.e. the plants with same ‘fix’ number were grown in the same pot.
    - The variables ‘sp_p1’, ‘family_p1’ and ‘origin_p1’ are the species, family and origin (native or alien, or empty if no soil-conditioning plant) of the soil-conditioning plant, respectively.
