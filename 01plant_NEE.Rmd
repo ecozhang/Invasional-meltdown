@@ -93,7 +93,7 @@ dir.create('table', showWarnings = F)     # create folder for tables
 
 read data
 ```{r}
-# load('plant.RData') # I saved all results, so I do not have to re-run the model.
+load('plant.RData') # I saved all results, so I do not have to re-run the model.
 source('01functions.R')
 dat <- read.csv('03plant_dat.csv', stringsAsFactors = FALSE)
 ```
@@ -161,7 +161,7 @@ u<-gl(1,1,length(dat_lambda$biomass))
 ```
 
 
-```{r lambda, eval = T}
+```{r lambda, eval = F}
 m_lambda <- lme(sqrt(biomass) ~ trans_date_c +
                   (T1_empty + T2_home_away + T3_origin) * origin_p2,
                 random=list(u = pdBlocked(list(
@@ -179,7 +179,7 @@ m_lambda <- lme(sqrt(biomass) ~ trans_date_c +
 
 
 
-```{r, eval = T}
+```{r, eval = F}
 table_ab <- drop1_single(m_lambda)
 ```
 
@@ -199,7 +199,7 @@ u <- gl(1, 1, length(dat_lambda_total$biomass))
 ```
 
 
-```{r, eval = T}
+```{r, eval = F}
 m_lambda    <-  update(m_lambda,sqrt(total) ~., data=dat_lambda_total)
 table_total <- drop1_single(m_lambda)
 ```
@@ -216,7 +216,7 @@ dat_lambda_root <- dat_lambda %>%
 u<-gl(1,1,length(dat_lambda_root$root))
 ```
 
-```{r, eval = T}
+```{r, eval = F}
 m_lambda    <- update(m_lambda, sqrt(root)~., data=dat_lambda_root)
 table_below <- drop1_single(m_lambda)
 ```
@@ -262,10 +262,13 @@ theme <-theme(panel.background = element_blank(),
 ```
 
 ```{r lambda_fig}
-col_fig <- brewer.pal(3, 'Dark2')[2:1]
+col_fig <- c('#FFA733', '#971997')
 ```
 
 ### aboveground biomass (Fig. 3b)
+
+
+
 ```{r lambda_fig_above, fig.height=3, fig.width= 3.5}
 p_alone <- plot_alone(legend = F, tag = 'b', xlab = '\nSoil treatment') + theme(legend.position = c(0.16,0.15)) +
   annotate("text", x = 4.8, y = 2.9, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2) +
@@ -284,17 +287,17 @@ p1 <- plot_alone(dat_lambda_root, variable = 'root',
                  ylab = 'Belowground biomass [g]\n', ylim = c(0,2),
                  tag = 'a') + 
   theme(legend.position = c(0.15,0.15)) + 
-  annotate("text", x = 5, y = 2, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2.5) +
-  annotate("text", x = 5, y = 1.8, label = expression(Soil[Home/Away] ~ '\u2020'), hjust = 0, size = 2.5) +
-  annotate("text", x = 5, y = 1.6, label = expression(Origin : Soil[Home/Away] ~ '*'), hjust = 0, size = 2.5) +
-  annotate("text", x = 5, y = 1.4, label = expression(Origin : Soil[Alien/Native] ~ '\u2020'), hjust = 0, size = 2.5) 
+  annotate("text", x = 5, y = 2, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2) +
+  annotate("text", x = 5, y = 1.8, label = expression(Soil[Home/Away] ~ '\u2020'), hjust = 0, size = 2) +
+  annotate("text", x = 5, y = 1.6, label = expression(Origin : Soil[Home/Away] ~ '*'), hjust = 0, size = 2) +
+  annotate("text", x = 5, y = 1.4, label = expression(Origin : Soil[Alien/Native] ~ '\u2020'), hjust = 0, size = 2) 
 
 # total
 p2 <- plot_alone(dat_lambda_total, variable = 'total', 
                  ylab = 'Total biomass [g]\n', ylim = c(0,5),
                  tag = 'b', legend = F) +   
-  annotate("text", x = 5, y = 5, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2.5) +
-  annotate("text", x = 5, y = 4.5, label = expression(Origin : Soil[Alien/Native] ~ '*'), hjust = 0, size = 2.5) 
+  annotate("text", x = 5, y = 5, label = expression(Soil[Non-conditioned/Conditioned] ~ '*'), hjust = 0, size = 2) +
+  annotate("text", x = 5, y = 4.5, label = expression(Origin : Soil[Alien/Native] ~ '*'), hjust = 0, size = 2) 
 
 
 grid.arrange(p1,p2, ncol =2, nrow = 1)
@@ -302,7 +305,7 @@ grid.arrange(p1,p2, ncol =2, nrow = 1)
 
 
 ```{r}
-# ggsave('./fig/sup_alone.pdf', grid.arrange(p1, p2, ncol =2, nrow = 1), height = 2.7, width = 14/2.54, useDingbats=FALSE)
+ggsave('./fig/sup_alone.pdf', grid.arrange(p1, p2, ncol =2, nrow = 1), height = 2.7, width = 14/2.54, useDingbats=FALSE)
 ```
 
 
@@ -329,7 +332,7 @@ dat_all <- dat %>%
 u <- gl(1,1,length(dat_all$biomass))
 ```
 
-```{r all, eval = T}
+```{r all, eval = F}
 m_all <- lme(sqrt(biomass) ~ trans_date_c + 
                (T1_empty + T2_home_away + T3_origin) * origin_p2 * (t1_alone_comp + t2_intra_inter),
              random = list(u = pdBlocked(list(
@@ -348,7 +351,7 @@ m_all <- lme(sqrt(biomass) ~ trans_date_c +
              data = dat_all, method="ML")
 ```
 
-```{r main_table, eval = T}
+```{r main_table, eval = F}
 m_all_r2  <- update(m_all,    .~.-(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))
 m_all_r3  <- update(m_all_r2, .~ trans_date_c+(T1_empty+T2_home_away+T3_origin)+origin_p2+(t1_alone_comp+t2_intra_inter))
 
@@ -371,7 +374,7 @@ dat_all2 <- dat_all %>%
 u <- gl(1,1,length(dat_all2$biomass))
 ```
 
-```{r, eval = T}
+```{r, eval = F}
 m_all2 <- update(m_all, data = dat_all2)
 m_all2_r2 <- update(m_all2,    .~. -(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))
 m_all2_r3 <- update(m_all2_r2, .~ trans_date_c+(T1_empty+T2_home_away+T3_origin)+origin_p2+(t1_alone_comp+t2_intra_inter))
@@ -393,7 +396,7 @@ Supplementary Table 3
 u <- gl(1,1,length(dat_all$biomass))
 ```
 
-```{r all_with_p1, eval = T}
+```{r all_with_p1, eval = F}
 m_all_co    <-  update(m_all,      .~. + scale(sqrt(bio_p1_0)))
 m_all_co_r2 <-  update(m_all_co,   .~.-(T1_empty+T2_home_away+T3_origin):origin_p2:(t1_alone_comp+t2_intra_inter))#2 way
 m_all_co_r3 <-  update(m_all_co_r2,.~ scale(sqrt(bio_p1_0)) + trans_date_c + 
@@ -487,14 +490,14 @@ p3
 
 
 ```{r}
-# ggsave('./fig/plant_main.pdf', grid.arrange(p1, p_alone, p3, nrow = 1),
-#        width = 18.8/2.54, height = 2.5, useDingbats=FALSE)
+ggsave('./fig/plant_main.pdf', grid.arrange(p1, p_alone, p3, nrow = 1),
+       width = 18.8/2.54, height = 2.5, useDingbats=FALSE)
 ```
 
 
 ### test-plant biomass ~ soil-plant biomass
 Supplementary Fig. 2
-```{r test~soil, eval = T}
+```{r test~soil, eval = F}
 m_bio <- update(m_all_co_r4, .~ sqrt(bio_p1_0), method = 'REML')
 ```
 

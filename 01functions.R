@@ -404,10 +404,12 @@ t_col <- function(color, percent = 50, name = NULL) {
 
 
 # NMDS plot
-beta_plot <- function(beta_matrix,sam_table,xlim = c(-0.8,1),ylim = c(-0.4,0.7),yaxt = c(-0.3,0,0.3,0.6),
-                    xaxt = c(-1, 0, 1, 2), tag = 'a'){
-  par(mar=c(4, 4, 3, 5.9),xpd = T)
+beta_plot <- function(beta_matrix,sam_table,
+                      xlim = c(-0.8,1),ylim = c(-0.4,0.7),
+                      yaxt = c(-0.3,0,0.3,0.6), xaxt = c(-1, 0, 1, 2), 
+                      tag = 'a'){
   
+  par(mar=c(4, 4, 3, 5.9),xpd = T)
   
   plot(NA,col= sam_table$col,pch = sam_table$pch,
        xlim = xlim,ylim = ylim,
@@ -416,9 +418,9 @@ beta_plot <- function(beta_matrix,sam_table,xlim = c(-0.8,1),ylim = c(-0.4,0.7),
        cex.axis = 0.7)
   axis(2, at=yaxt,sprintf("%0.1f", yaxt), las=2,tck = -0.03, cex.axis = 0.7)
   axis(1, at=xaxt,sprintf("%0.1f", xaxt), las=1,tck = -0.03, cex.axis = 0.7)
-  ordiellipse(beta_matrix,groups=sam_table$status,draw="polygon",col=c('gray50',col_fig),
+  ordiellipse(beta_matrix, groups=sam_table$status, draw="polygon", col=c('gray50', col_fig),
               label=F,border = NA, alpha= 255*0.55)
-  points(beta_matrix$points,col= sam_table$col,pch = 16,cex= 0.8)
+  points(beta_matrix$points, col= sam_table$col, pch = 16, cex= 0.8)
   fig_label(tag, font = 2)
   
   legend('topleft', paste('Stress = ', beta_matrix$stress %>% round(3)), bty = 'n', cex = 0.7)
@@ -431,9 +433,10 @@ beta_plot <- function(beta_matrix,sam_table,xlim = c(-0.8,1),ylim = c(-0.4,0.7),
 boxplot_div <- function(table_alpha = alpha_16s, y = 'sr', title = 'Bacteria', ylab = 'Species richness', tag = 'a'){
   table_alpha %>% 
     filter(status != 'back') %>% 
-    ggplot() + aes_string(x = 'status', y = y, col = 'status') + geom_boxplot(size = 0.5, outlier.size = 0.5) + 
+    ggplot() + aes_string(x = 'status', y = y, col = 'status') + 
+    geom_boxplot(size = 0.5, outlier.size = 0.5) + 
     scale_color_manual(values = c('black', col_fig)) +
-    facet_wrap(~ ster.not,labeller = labeller(ster.not = c('nonster' = 'Live', 'ster' = 'Sterilized'))) + 
+    facet_wrap(~ ster.not, labeller = labeller(ster.not = c('nonster' = 'Live', 'ster' = 'Sterilized'))) + 
     labs(x = NULL, y = ylab, title = title, tag = tag) + 
     theme + theme(axis.text.x = element_text(size = 6, angle = 45, hjust = 1, colour = 'black', margin = margin(t = 6)),
                   plot.margin = margin(t = 0.1, r = 0.1, b = 0.3, l = 0.1, unit = "cm"))

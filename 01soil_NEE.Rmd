@@ -113,7 +113,8 @@ library(MuMIn)
 
 
 ```{r}
-col_fig <- brewer.pal(3, 'Dark2')[2:1]
+col_fig <- c('#FFA733', '#971997')
+
 theme <- theme_bw() + 
   theme(panel.background = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), 
@@ -125,7 +126,8 @@ theme <- theme_bw() +
         axis.text.y = element_text(size = 6, colour = 'black'),
         axis.title  = element_text(size = 6, colour = 'black'),
         title = element_text(size = 7),
-        plot.title = element_text(size = 7, hjust = 0.5),
+        plot.title   = element_text(size = 7, hjust = 0.5),
+        strip.text.x = element_text(size = 6),
         plot.tag   = element_text(size = 7, face = 'bold'),
         legend.position = "none",
         plot.margin = margin(t = 0.5, r = 0.1, b = 0.5, l = 0.1, unit = "cm"))
@@ -360,10 +362,13 @@ col_table <- sam_table_16s_nonster %>%
   distinct() %>%
   arrange(status) %>%
   mutate(pch = 16) # order according to status
-col_table$col<-c('black',#
-                 brewer.pal(n = 9, name = "Oranges")[c(4:7)],
-                 brewer.pal(n = 9, name = "Greens")[c(3:8)]
+
+col_table$col<-c('black',
+                 colorRampPalette(c('orangered', 'yellow'))(5)[1:4],
+                 c(brewer.pal(12, 'Paired')[c(1:2)],  'royalblue4', 
+                   brewer.pal(12, 'Paired')[c(9:10)], 'violetred2')
                  )
+
 # info
 sam_table_16s_nonster <- sam_table_16s_nonster %>% left_join(col_table)
 sam_table_16s_ster    <- sam_table_16s_ster    %>% left_join(col_table)
@@ -442,7 +447,7 @@ t_struct_its_ster_pathogen %>% kable(digits = 3)
 ## figures
 ### bacteria and fungi (Extended Fig. 2)
 ```{r, fig.height=6, fig.width=7}
-# pdf('./fig/struct.pdf', height = 6, width = 18/2.54)
+# pdf('./fig/struct.pdf', height = 6, width = 18/2.54, useDingbats=FALSE)
 par(mfrow = c(2,2), xpd = T)
 
 beta_plot(beta_all[[1]],sam_table_16s_nonster,ylim = c(-0.2,0.2),xlim = c(-0.4,1), 
@@ -753,9 +758,9 @@ text(0.48, 5, '*')
 
 
 
-### sterilized soils (Extended Fig. 6)
+### sterilized soils (Extended Fig. 7)
 ```{r, fig.width=7, fig.height= 6}
-# pdf('./fig/cor_plot_sp_ster_t.pdf',height = 6, width = 18/2.54)
+# pdf('./fig/cor_plot_sp_ster_t.pdf',height = 6, width = 18/2.54, useDingbats=FALSE)
 par(mfrow = c(2,4),xpd = T)
 plot_cor(beta_mat_sp_16s_ster,title = 'Bacteria')
 plot_cor(beta_mat_sp_its_ster,title = 'All fungi', tag = 'b')
@@ -985,13 +990,13 @@ p1 <- boxplot_div(abun_its_pathogen, y = 'rel_abu', title = 'Fungal pathogens',y
 # ggsave('./fig/alpha.pdf', height = 7, width = 18/2.54,
 #        grid.arrange(p_alpha_16s_sr,   p_alpha_its_sr,   p_alpha_its_pathogen_sr,
 #                     p_alpha_16s_shan, p_alpha_its_shan, p_alpha_its_pathogen_shan,
-#                     p1, 
-#                     layout_matrix = matrix(c(1:6, NA, NA, 7), nrow =3, ncol = 3, byrow = T)))
+#                     p1,
+#                     layout_matrix = matrix(c(1:6, NA, NA, 7), nrow =3, ncol = 3, byrow = T)),  useDingbats=FALSE)
 ```
 ```{r,fig.height = 7, fig.width= 7}
 grid.arrange(p_alpha_16s_sr,   p_alpha_its_sr,   p_alpha_its_pathogen_sr,
              p_alpha_16s_shan, p_alpha_its_shan, p_alpha_its_pathogen_shan,
-             p1, 
+             p1,
              layout_matrix = matrix(c(1:6, NA, NA, 7), nrow =3, ncol = 3, byrow = T))
 ```
 
@@ -1202,21 +1207,7 @@ t_dis_endo_path %>% kable;  t_dis_endo_no_path %>% kable
 
 
 ```{r}
-theme <- theme_bw() + 
-  theme(panel.background = element_blank(), panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        #axis.line = element_line(colour = "black"),
-        strip.background = element_blank(),
-        legend.key = element_rect(colour = NA, fill = NA),
-        legend.background = element_blank(),
-        legend.title = element_blank(),
-        axis.text.x = element_text(size = 6, colour = 'black'),
-        axis.text.y = element_text(size = 6, colour = 'black'),
-        axis.title  = element_text(size = 8, colour = 'black'),
-        title = element_text(size = 9),
-        plot.title = element_text(hjust = 0.5),
-        legend.position = "none",
-        plot.margin = margin(t = 0.5, r = 0.3, b = 0.5, l = 0.2, unit = "cm"))
+
 
 ```
 
@@ -1542,6 +1533,8 @@ export table
 
 
 ```{r}
+theme <- theme + 
+  theme(plot.margin = margin(t = 0.5, r = 0.3, b = 0.5, l = 0.1, unit = "cm"))
 ylab = expression(paste('Soil legacy effect (', italic(beta['alone']), ')','\n', sep = ''))
 p1 <- dat_legacy_alone %>% 
   ggplot() + aes(x = div_16s_sr, y = legacy_alone, col = origin_p2) + 
@@ -1720,7 +1713,7 @@ p1 <- dat_legacy_stren %>%
   ggplot() + aes(x = div_16s_sr, y = legacy_stren, col = origin_p2) + 
   geom_point(size = 0.8) + labs(x = '\nSpecies richness', y = ylab, 
                                 title = 'Bacteria', tag = 'a') + 
-  theme + scale_x_continuous(breaks=pretty_breaks(n = 3)) +
+  theme + 
   scale_color_manual(values = t_col(col_fig)) +
   theme(legend.position = c(0.8,0.2),
         legend.text = element_text(size = 7),
@@ -1730,7 +1723,7 @@ p2 <- dat_legacy_stren %>%
   ggplot() + aes(x = div_its_sr, y = legacy_stren, col = origin_p2) + 
   geom_point(size = 0.8) + labs(x = '\nSpecies richness', y = ' ', 
                                 title = 'All fungi', tag = 'b') + 
-  theme + scale_x_continuous(breaks=pretty_breaks(n = 4)) +
+  theme +
   scale_color_manual(values = t_col(col_fig))
 
 
@@ -1740,8 +1733,10 @@ p3 <- dat_legacy_stren %>%
                                 title = ' ', tag = 'd') + 
   theme + scale_x_continuous(breaks=pretty_breaks(n = 4)) +
   scale_color_manual(values = t_col(col_fig)) +
-  geom_abline(intercept = summary(model2)$coef$fixed[1], slope = summary(model2)$coef$fixed[2], col = col_fig[1]) +
-  geom_abline(intercept = summary(model2)$coef$fixed[c(1,3)] %>% sum , slope = summary(model2)$coef$fixed[c(2,4)] %>% sum, col = col_fig[2]) 
+  geom_abline(intercept = summary(model2)$coef$fixed[1], 
+              slope = summary(model2)$coef$fixed[2], col = col_fig[1]) +
+  geom_abline(intercept = summary(model2)$coef$fixed[c(1,3)] %>% sum , 
+              slope = summary(model2)$coef$fixed[c(2,4)] %>% sum, col = col_fig[2]) 
 
 p4 <- dat_legacy_stren %>% 
   ggplot() + aes(x = div_its_shan, y = legacy_stren, col = origin_p2) + 
@@ -1788,11 +1783,10 @@ p7 <- dat_legacy_stren %>%
 
 
 ```{r}
-# ggsave('./fig/alpha.pdf', height = 7, width = 18/2.54,
-#        grid.arrange(p_alpha_16s_sr,   p_alpha_its_sr,   p_alpha_its_pathogen_sr,
-#                     p_alpha_16s_shan, p_alpha_its_shan, p_alpha_its_pathogen_shan,
-#                     p1, 
-#                     layout_matrix = matrix(c(1:6, NA, NA, 7), nrow =3, ncol = 3, byrow = T)))
+# ggsave('./fig/legacy_stren~div.pdf', height = 7, width = 18/2.54,
+#         grid.arrange(p1, p2, p6,
+#                      p3, p4, p7,
+#                      p5, layout_matrix = matrix(c(1:6, NA, NA, 7), nrow =3, ncol = 3, byrow = T)))
 ```
 
 ```{r,fig.height = 7, fig.width= 7}
